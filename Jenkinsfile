@@ -2,7 +2,7 @@ pipeline {
     agent any 
 
     environment { 
-        GIT_CREDENTIAL_ID = "github_pat" 
+        GIT_CREDENTIAL_ID = "github_path" 
         GIT_USER_EMAIL = "huuthien24497@gmail.com" 
         GIT_USER_NAME = "huuthien24" 
     } 
@@ -31,7 +31,7 @@ pipeline {
 
         stage('Auto Update Version') { 
             steps { 
-                sh """ 
+                sh ''' 
                 CURRENT=\$(grep '"version"' package.json | awk -F '"' '{print \$4}') 
                 IFS='.' read -r major minor patch <<< "\$CURRENT" 
                 NEW_VERSION="\$major.\$minor.\$((patch+1))" 
@@ -39,14 +39,14 @@ pipeline {
                 echo "Updating version: \$CURRENT → \$NEW_VERSION" 
 
                 sed -i "s/\\\"version\\\": \\\"[^\"]*\\\"/\\\"version\\\": \\\"\$NEW_VERSION\\\"/" package.json 
-                """ 
+                ''' 
             } 
         } 
 
         stage('Commit & Push Back to GitHub') { 
             steps { 
                 withCredentials([string(credentialsId: "${GIT_CREDENTIAL_ID}", variable: "TOKEN")]) { 
-                    sh """ 
+                    sh ''' 
                     git config user.email "${GIT_USER_EMAIL}" 
                     git config user.name "${GIT_USER_NAME}" 
 
@@ -55,7 +55,7 @@ pipeline {
                     git commit -m "CI: Auto bump version" 
                      
                     git push https://${TOKEN}:x-oauth-basic@github.com/huuthien24/node-web-demo.git HEAD:main 
-                    """ 
+                    ''' 
                 } 
             } 
         } 

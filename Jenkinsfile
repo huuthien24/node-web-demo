@@ -1,69 +1,55 @@
-pipeline { 
-    agent any 
+pipeline {
+    agent any
 
-    environment { 
-        GIT_CREDENTIAL_ID = "github_path" 
-        GIT_USER_EMAIL = "huuthien24497@gmail.com" 
-        GIT_USER_NAME = "huuthien24" 
-    } 
+    environment {
+        GIT_CREDENTIAL_ID = 'github_pat'
+        GIT_USER_EMAIL = 'huuthien24@github.com'
+        GIT_USER_NAME = 'huuthien24'
+    }
 
-    stages { 
+    stages {
+        stage('Checkout Source') {
+            steps {
+                git credentialsId: "${GIT_CREDENTIAL_ID}",
+                    url: "https://github.com/huuthien24/node-web-demo.git",
+                    branch: "main"
+            }
+        }
 
-        stage('Checkout Source') { 
-            steps { 
-                git credentialsId: "${GIT_CREDENTIAL_ID}", 
-                    url: "https://github.com/huuthien24/node-web-demo.git", 
-                    branch: "main" 
-            } 
-        } 
+        stage('Install Dependencies') {
+            steps {
+                sh 'npm install'
+            }
+        }
 
-         stage('Install Dependencies') { 
-            steps { 
-                sh 'npm install' 
-            } 
-        } 
+        stage('Run Tests') {
+            steps {
+                sh 'npm test'
+            }
+        }
 
-        stage('Run Tests') { 
-            steps { 
-                sh 'npm test' 
-            } 
-        } 
+        stage('Auto Update Version') {
+            steps {
+                sh '''
+                    npm version patch --no-git-tag-version
+                '''
+            }
+        }
 
-        stage('Auto Update Version') { 
-            steps { 
-                sh ''' 
-                CURRENT=\$(grep '"version"' package.json | awk -F '"' '{print \$4}') 
-                IFS='.' read -r major minor patch <<< "\$CURRENT" 
-                NEW_VERSION="\$major.\$minor.\$((patch+1))" 
-
-                echo "Updating version: \$CURRENT → \$NEW_VERSION" 
-
-                sed -i "s/\\\"version\\\": \\\"[^\"]*\\\"/\\\"version\\\": \\\"\$NEW_VERSION\\\"/" package.json 
-                ''' 
-            } 
-        } 
-
-        stage('Commit & Push Back to GitHub') { 
-            steps { 
-                withCredentials([string(credentialsId: "${GIT_CREDENTIAL_ID}", variable: "TOKEN")]) { 
-                    sh ''' 
-                    git config user.email "${GIT_USER_EMAIL}" 
-                    git config user.name "${GIT_USER_NAME}" 
-
-                    git add . 
-
-                    git commit -m "CI: Auto bump version" 
-                     
-                    git push https://${TOKEN}:x-oauth-basic@github.com/huuthien24/node-web-demo.git HEAD:main 
-                    ''' 
-                } 
-            } 
-        } 
-    } 
-
-    post { 
-        always { 
-            echo "CI Pipeline completed!" 
-        } 
-    } 
-} 
+        stage('Commit & Push Back to GitHub') {
+            steps {
+                withCredentials([usernamePassword(credentialsId: "${GIT_CREDENTIAL_ID}", usernameVariable: 'GIT_USER', passwordVariable: 'GIT_PASS')]) {
+                    sh '''
+                        git config user.email "${GIT_USER_EMAIL}"
+                        git config user.name "${GIT_USER_NAME}"
+                        
+                        git add package.json package-lock.json
+                        git commit -m "chore(ci): auto update version [skip ci]" || echo "No changes to commit"
+                        
+                        git push https://${GIT_USER}:${GIT_PASS}@github.com/huuthien24/node-web-demo.git HEAD:main
+                    '''
+                }
+            }
+        }
+    }
+}
